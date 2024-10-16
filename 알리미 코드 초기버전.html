@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>시간표 알림 프로그램</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            text-align: center;
+        }
+        #dayInput {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        #getTimetableButton {
+            padding: 10px;
+            cursor: pointer;
+        }
+        #timetableOutput {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow: auto;
+        }
+        #memoInput {
+            width: 80%;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        #saveMemoButton {
+            padding: 10px;
+            cursor: pointer;
+        }
+        #memoOutput {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 20px;
+            max-height: 200px;
+            overflow: auto;
+        }
+        .deleteButton {
+            background-color: red;
+            color: white;
+            border: none;
+            padding: 5px;
+            cursor: pointer;
+        }
+        /* 달력 스타일 */
+        #calendar {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 10px;
+        }
+        .day {
+            border: 1px solid #ccc;
+            padding: 10px;
+            text-align: center;
+        }
+        .day-name {
+            font-weight: bold;
+        }
+        #calendarControls {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>학교 시간표 알림</h1>
+    <input type="text" id="dayInput" placeholder="월요일, 화요일, ... 입력" />
+    <button id="getTimetableButton">시간표 확인</button>
+    <div id="timetableOutput"></div>
+
+    <h2>메모 추가</h2>
+    <input type="text" id="memoInput" placeholder="메모를 입력하세요" />
+    <button id="saveMemoButton">메모 저장</button>
+    <div id="memoOutput"></div>
+
+    <h2>달력</h2>
+    <div id="calendarControls">
+        <select id="yearSelect"></select>
+        <select id="monthSelect"></select>
+        <button id="updateCalendarButton">달력 업데이트</button>
+    </div>
+    <div id="calendar"></div>
+
+    <script>
+        // 시간표 데이터 설정
+        const timetable = {
+            "월요일": ["심영회", "언매", "한국사", "지구과학", "확통", "교양", "교양"],
+            "화요일": ["진로", "심영회", "한국사(효식쌤)", "체육(태신쌤)", "중독작", "수학", "심영"],
+            "수요일": ["한국사", "중독작", "심영회", "수학", "언매", "심영", "지구과학"],
+            "목요일": ["체육(의재쌤)", "사문", "수학", "확통", "언매", "중독작", "영어"],
+            "금요일": ["자율", "동아리", "영어", "심영회", "사문", "사문", "수학"]
+        };
+
+        // 특정 요일의 시간표를 알려주는 함수
+        const getTimetableByDay = (day) => {
+            const outputDiv = document.getElementById('timetableOutput');
+            outputDiv.innerHTML = `${day}의 시간표: <br>`;
+            if (timetable[day]) {
+                timetable[day].forEach((subject, index) => {
+                    outputDiv.innerHTML += `${index + 1}교시: ${subject}<br>`;
+                });
+            } else {
+                outputDiv.innerHTML += "해당 요일의 시간표가 없습니다.";
+            }
+        };
+
+        // 버튼 클릭 시 시간표 확인
+        document.getElementById('getTimetableButton').onclick = () => {
+            const dayInput = document.getElementById('dayInput').value;
+            getTimetableByDay(dayInput);
+        };
+
+        // 메모 저장 기능
+        const memos = JSON.parse(localStorage.getItem('memos')) || [];
+
+        const saveMemosToLocalStorage = () => {
+            localStorage.setItem('memos', JSON.stringify(memos));
+        };
+
+        document.getElementById('saveMemoButton').onclick = () => {
+            const memoInput = document.getElementById('memoInput').value;
+            if (memoInput) {
+                memos.push(memoInput);
+                document.getElementById('memoInput').value = ''; // 입력 필드 비우기
+                saveMemosToLocalStorage(); // 메모를 localStorage에 저장
+                displayMemos();
+            } else {
+                alert('메모를 입력하세요.');
+            }
+        };
+
+        const displayMemos = () => {
+            const memoOutput = document.getElementById('memoOutput');
+            memoOutput.innerHTML = '저장된 메모: <br>';
+            memos.forEach((memo, index) => {
+                memoOutput.innerHTML += `${index + 1}: ${memo} <button class="deleteButton" onclick="deleteMemo(${index})">삭제</button><br>`;
+            });
+        };
+
+        // 메모 삭제 기능
+        const deleteMemo = (index) => {
+            memos.splice(index, 1);
+            saveMemosToLocalStorage(); // 변경된 메모를 localStorage에 저장
+            displayMemos();
+        };
+
+        // 달력 생성 함수
+        const createCalendar = (year, month) => {
+            const calendarDiv = document.getElementById('calendar');
+            calendarDiv.innerHTML = ''; // 기존 달력 초기화
+
+            const daysOfWeek = ['일', '월', '화', '수', '목', '금', '토'];
+            daysOfWeek.forEach(day => {
+                const dayName = document.createElement('div');
+                dayName.className = 'day day-name';
+                dayName.innerText = day;
+                calendarDiv.appendChild(dayName);
+            });
+
+            // 해당 월의 첫 번째 날
+            const firstDayOfMonth = new Date(year, month, 1);
+            const lastDayOfMonth = new Date(year, month + 1, 0);
+            const totalDays = lastDayOfMonth.getDate();
+
+            // 첫 주의 빈 날짜
+            for (let i = 0; i < firstDayOfMonth.getDay(); i++) {
+                const emptyDay = document.createElement('div');
+                emptyDay.className = 'day';
+                calendarDiv.appendChild(emptyDay);
+            }
+
+            // 각 날짜 추가
+            for (let day = 1; day <= totalDays; day++) {
+                const dayDiv = document.createElement('div');
+                dayDiv.className = 'day';
+                dayDiv.innerText = day;
+                calendarDiv.appendChild(dayDiv);
+            }
+        };
+
+        // 년도와 월 선택
+        const yearSelect = document.getElementById('yearSelect');
+        const monthSelect = document.getElementById('monthSelect');
+        const currentDate = new Date();
+        const currentYear = currentDate.getFullYear();
+        const currentMonth = currentDate.getMonth();
+
+        // 년도 옵션 추가
+        for (let year = currentYear - 10; year <= currentYear + 10; year++) {
+            const option = document.createElement('option');
+            option.value = year;
+            option.innerText = year;
+            yearSelect.appendChild(option);
+        }
+        yearSelect.value = currentYear;
+
+        // 월 옵션 추가
+        for (let month = 0; month < 12; month++) {
+            const option = document.createElement('option');
+            option.value = month;
+            option.innerText = month + 1;
+            monthSelect.appendChild(option);
+        }
+        monthSelect.value = currentMonth;
+
+        // 달력 생성 호출
+        createCalendar(currentYear, currentMonth);
+
+        // 달력 업데이트 버튼 클릭 시
+        document.getElementById('updateCalendarButton').onclick = () => {
+            const selectedYear = parseInt(yearSelect.value);
+            const selectedMonth = parseInt(monthSelect.value);
+            createCalendar(selectedYear, selectedMonth);
+        };
+
+        // 메모가 있으면 화면에 표시
+        displayMemos();
+    </script>
+</body>
+</html>
